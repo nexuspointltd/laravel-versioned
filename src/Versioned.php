@@ -1,6 +1,6 @@
 <?php
 
-namespace NexusPoint\Versioned\Traits;
+namespace NexusPoint\Versioned;
 
 use Illuminate\Database\Eloquent\Model;
 use DB;
