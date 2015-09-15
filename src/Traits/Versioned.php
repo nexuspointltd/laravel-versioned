@@ -1,10 +1,9 @@
 <?php
 
-namespace Nexus\Apex\Models\Traits;
+namespace NexusPoint\Versioned\Traits;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Sentry;
+use DB;
 
 trait Versioned
 {
@@ -155,14 +154,23 @@ trait Versioned
      *
      * @return mixed
      */
-    public function undoVersion()
+    public function undoVersion($doNotVersion = false)
     {
         $version = $this->getVersionQueryWhere()
                         ->orderBy('version_no', 'desc')
                         ->first();
         if (!$version) return false;
 
-        return $this->update(json_decode($version->data, true));
+        if ($doNotVersion) {
+            $versioned = $this->versioned;
+            $this->versioned = false;
+        }
+        $result = $this->update(json_decode($version->data, true));
+        if ($doNotVersion) {
+            $this->versioned = $versioned;
+        }
+
+        return $result;
     }
 
     /**

@@ -26,12 +26,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Coderollers\\Versioned\\": "src"
+            "NexusPoint\\Versioned\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Coderollers\\Versioned\\Test\\": "tests"
+            "NexusPoint\\Versioned\\Test\\": "tests"
         }
     },
     "scripts": {
