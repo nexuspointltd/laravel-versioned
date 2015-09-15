@@ -21,24 +21,19 @@ trait Versioned
      * Field from the model to use as the versions name
      * @var string
      */
-    protected $versionsNameColumn = 'title';
+    protected $versionNameColumn = 'title';
     /**
      * Allows us to temporarily disable versioning on the model
      * @var string
      */
     protected $versioned = true;
 
-    public static function bootVersionable()
+    /**
+     * Boot the trait and set up event listeners.
+     */
+    public static function bootVersioned()
     {
         static::updating(
-            function (Model $model) {
-                if ($model->isVersioned()) {
-                    $model->addVersion();
-                }
-            }
-        );
-
-        static::deleting(
             function (Model $model) {
                 if ($model->isVersioned()) {
                     $model->addVersion();
@@ -58,6 +53,8 @@ trait Versioned
         if (!isset($this->id)) return false;
 
         $data = json_encode($this->original);
+        $hash_data = $this->original;
+        unset($hash_data['updated_at']);
         $timestamp = date('Y-m-d H:i:s');
 
         return $this->getVersionQuery()->insertGetId(
@@ -67,7 +64,7 @@ trait Versioned
                 'version_no'    => $this->getVersionQueryWhere()->max('version_no') + 1,
                 'subject_id'    => $this->id,
                 'subject_class' => get_class($this),
-                'hash'          => md5($data),
+                'hash'          => md5(json_encode($hash_data)),
                 'created_at'    => $timestamp,
                 'updated_at'    => $timestamp,
             ]
@@ -99,7 +96,7 @@ trait Versioned
     public function getAllVersions()
     {
         return $this->getVersionQueryWhere()
-                    ->orderBy('updated_at', 'desc')
+                    ->orderBy('version_no', 'desc')
                     ->get();
     }
 
@@ -111,6 +108,16 @@ trait Versioned
     public function getVersionCount()
     {
         return $this->getVersionQueryWhere()->count();
+    }
+
+    /**
+     * Get current versions number
+     *
+     * @return int
+     */
+    public function getCurrentVersionNo()
+    {
+        return $this->getVersionCount() + 1;
     }
 
     /**
@@ -130,7 +137,7 @@ trait Versioned
     }
 
     /**
-     * Restore the model to the passed in version
+     * Restore the model to the given version number.
      * The current model attributes will be versioned
      * before restoring
      *
@@ -148,26 +155,52 @@ trait Versioned
     }
 
     /**
+     * Rollback to the given version number and destroy all
+     * versions saved since then.
+     *
+     * @param $versionNo
+     * @return bool
+     */
+    public function rollbackToVersion($versionNo)
+    {
+        $version = $this->getVersionQueryWhere()
+                        ->where('version_no', $versionNo)
+                        ->first();
+        if (!$version) return false;
+
+        $result = $this->update(json_decode($version->data, true));
+
+        return $result && $this->getVersionQueryWhere()
+                               ->where('version_no', '>=', $versionNo)
+                               ->delete();
+    }
+
+    /**
      * Restore the model to the previously saved version
      * The current model attributes will be versioned
      * before restoring
      *
+     * @param bool $saveNewVersion
      * @return mixed
      */
-    public function undoVersion($doNotVersion = false)
+    public function rollback($saveNewVersion = false)
     {
         $version = $this->getVersionQueryWhere()
                         ->orderBy('version_no', 'desc')
                         ->first();
         if (!$version) return false;
 
-        if ($doNotVersion) {
+        if ($saveNewVersion === false) {
             $versioned = $this->versioned;
             $this->versioned = false;
         }
         $result = $this->update(json_decode($version->data, true));
-        if ($doNotVersion) {
+        if ($saveNewVersion === false) {
             $this->versioned = $versioned;
+            $this->getVersionQueryWhere()
+                 ->orderBy('version_no', 'desc')
+                 ->take(1)
+                 ->delete();
         }
 
         return $result;
@@ -193,6 +226,16 @@ trait Versioned
     }
 
     /**
+     * Delete all versions of the model
+     *
+     * @return bool
+     */
+    public function deleteAllVersions()
+    {
+        return $this->getVersionQueryWhere()->delete();
+    }
+
+    /**
      * Reorder all version numbers of the model in sequence
      *
      * @return void
@@ -204,25 +247,17 @@ trait Versioned
     }
 
     /**
-     * Delete all versions of the model
-     *
-     * @return bool
-     */
-    public function deleteAllVersions()
-    {
-        return $this->getVersionQueryWhere()->delete();
-    }
-
-    /**
      * Get the versions name field
      * @param  string $name
      * @return string       versions name field
      */
     private function getVersionName($name = '')
     {
-        $col_name = $this->versionsNameColumn;
-        if (empty($name) and isset($this->$col_name)) {
-            return $this->$col_name;
+        if ($name) return $name;
+
+        $col_name = $this->versionNameColumn;
+        if (isset($this->original[$col_name])) {
+            return $this->original[$col_name];
         }
 
         return $name;
