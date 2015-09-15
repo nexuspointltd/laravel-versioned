@@ -1,0 +1,45 @@
+{
+    "name": "nexuspoint/laravel-versioned",
+    "description": "Versioning for Eloquent Models",
+    "keywords": [
+        "laravel",
+        "laravel-5",
+        "versioning",
+        "versioned",
+        "undo"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chris Reid",
+            "email": "chris.reid@nexuspoint.co.uk",
+            "homepage": "www.nexuspoint.co.uk",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php" : ">=5.5.9",
+        "illuminate/database" : "5.1.*"
+    },
+    "require-dev": {
+        "phpunit/phpunit" : "4.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Coderollers\\Versioned\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Coderollers\\Versioned\\Test\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.0-dev"
+        }
+    }
+}
