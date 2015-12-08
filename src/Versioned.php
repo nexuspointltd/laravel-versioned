@@ -28,16 +28,22 @@ trait Versioned
      */
     protected $versioned = true;
 
+    private static $user_id;
+
     /**
      * Boot the trait and set up event listeners.
      */
     public static function bootVersioned()
     {
+        static::$user_id = app('auth')->id();
+
         static::updating(
             function (Model $model) {
                 if ($model->isVersioned()) {
-                    $model->addVersion();
+                    $model->addVersion(null, true);
                 }
+
+                return true;
             }
         );
     }
@@ -46,22 +52,26 @@ trait Versioned
      * Save the current models state to the database
      *
      * @param string $name Optional name or short description
-     * @return bool|integer
+     * @param bool $fromEvent
+     * @return bool|int
      */
-    public function addVersion($name = '')
+    public function addVersion($name = '', $fromEvent = false)
     {
         if (!isset($this->id)) return false;
 
         $data = json_encode($this->original);
         $hash_data = $this->original;
         unset($hash_data['updated_at']);
-        $timestamp = date('Y-m-d H:i:s');
+        $timestamp = $fromEvent ? $this->{$this->getUpdatedAtColumn()} : date('Y-m-d H:i:s');
+
+        $versionNo = $fromEvent ? $this->getVersionQueryWhere()->max('version_no') + 1 : null;
 
         return $this->getVersionQuery()->insertGetId(
             [
+                'user_id'       => static::$user_id,
                 'data'          => $data,
                 'name'          => $this->getVersionName($name),
-                'version_no'    => $this->getVersionQueryWhere()->max('version_no') + 1,
+                'version_no'    => $versionNo,
                 'subject_id'    => $this->id,
                 'subject_class' => get_class($this),
                 'hash'          => md5(json_encode($hash_data)),
@@ -69,6 +79,11 @@ trait Versioned
                 'updated_at'    => $timestamp,
             ]
         );
+    }
+
+    public function saveDraft()
+    {
+        return $this->addVersion('Draft');
     }
 
     /**
@@ -236,6 +251,14 @@ trait Versioned
     }
 
     /**
+     * @return boolean
+     */
+    public function isVersioned()
+    {
+        return $this->versioned;
+    }
+
+    /**
      * Reorder all version numbers of the model in sequence
      *
      * @return void
@@ -251,7 +274,7 @@ trait Versioned
      * @param  string $name
      * @return string       versions name field
      */
-    private function getVersionName($name = '')
+    protected function getVersionName($name = '')
     {
         if ($name) return $name;
 
@@ -281,14 +304,6 @@ trait Versioned
         return $this->getVersionQuery()
                     ->where('subject_id', '=', $this->id)
                     ->where('subject_class', '=', get_class($this));
-    }
-
-    /**
-     * @return boolean
-     */
-    public function isVersioned()
-    {
-        return $this->versioned;
     }
 
 }

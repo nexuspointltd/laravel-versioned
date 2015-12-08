@@ -14,6 +14,7 @@ class CreateVersionsTable extends Migration
     {
         Schema::create('versions', function (Blueprint $table) {
             $table->increments('id');
+            $table->integer('user_id')->nullable()->unsigned()->references('id')->on('users');
             $table->integer('version_no')->unsigned();
             $table->integer('subject_id')->unsigned();
             $table->string('subject_class');
